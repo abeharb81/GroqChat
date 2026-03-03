@@ -13,7 +13,7 @@ st.set_page_config(
 # ── Custom CSS ──────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Poppins:wght@400;500;600&display=swap');
 
 :root {
     --bg:       #0a0a0f;
@@ -29,7 +29,7 @@ st.markdown("""
 }
 
 html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Nunito', sans-serif;
     background-color: var(--bg) !important;
     color: var(--text) !important;
 }
@@ -54,7 +54,7 @@ html, body, [class*="css"] {
 [data-testid="stSidebar"] * { color: var(--text) !important; }
 
 .sidebar-title {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Poppins', sans-serif;
     font-size: 1.6rem;
     font-style: italic;
     color: var(--accent) !important;
@@ -81,7 +81,8 @@ div[data-baseweb="textarea"] textarea,
     -webkit-text-fill-color: #ffffff !important;
     border: 1px solid #3a3a55 !important;
     border-radius: 8px !important;
-    font-size: 0.9rem !important;
+    font-size: 0.95rem !important;
+    font-family: 'Nunito', sans-serif !important;
     font-weight: 400 !important;
     line-height: 1.6 !important;
     opacity: 1 !important;
@@ -112,9 +113,10 @@ textarea:focus {
     padding: 1.8rem 0 1rem;
 }
 .main-header h1 {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Poppins', sans-serif;
     font-size: clamp(2rem, 5vw, 3rem);
-    font-style: italic;
+    font-style: normal;
+    font-weight: 600;
     background: linear-gradient(135deg, var(--accent), var(--accent2), #fbbf24);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -158,35 +160,39 @@ textarea:focus {
     50%       { opacity: 0.5; transform: scale(1.5); }
 }
 
-/* ── Input panels ── */
-.input-panel {
-    background: linear-gradient(135deg, #0f0f1a, #141420);
-    border-radius: 14px;
-    padding: 18px 20px;
+/* ── Unified input box ── */
+.unified-box {
+    background: linear-gradient(135deg, #0f0f1a, #141422);
+    border: 1px solid rgba(249,115,22,0.25);
+    border-radius: 18px;
+    padding: 20px 22px 8px;
     margin: 8px 0 14px;
+    box-shadow: 0 0 32px rgba(249,115,22,0.08);
 }
-.voice-panel  { border: 1px solid rgba(249,115,22,0.2); }
-.file-panel   { border: 1px solid rgba(99,102,241,0.3); }
-
-.panel-label {
+.tool-label {
+    font-family: 'Nunito', sans-serif;
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin-bottom: 10px;
+    color: var(--muted);
+    margin-bottom: 8px;
 }
-.voice-panel .panel-label { color: #fb923c; }
-.file-panel  .panel-label { color: #a5b4fc; }
-
+.box-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 14px 0 12px;
+}
 .voice-transcript {
     background: #1a1a2e;
     border: 1px dashed #3a3a55;
     border-radius: 8px;
     padding: 10px 14px;
+    font-family: 'Nunito', sans-serif;
     font-size: 0.88rem;
     color: #c0c0e0;
     font-style: italic;
-    margin-top: 10px;
+    margin-top: 8px;
     line-height: 1.5;
 }
 
@@ -225,8 +231,11 @@ textarea:focus {
     border-radius: 16px 16px 4px 16px;
     padding: 14px 18px;
     margin: 8px 0 8px 40px;
-    font-size: 0.93rem;
-    line-height: 1.65;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.75;
+    letter-spacing: 0.01em;
 }
 .user-bubble.voice { border-left: 3px solid #f97316; }
 .user-bubble.file  { border-left: 3px solid #6366f1; }
@@ -237,8 +246,11 @@ textarea:focus {
     border-radius: 4px 16px 16px 16px;
     padding: 14px 18px;
     margin: 8px 40px 8px 0;
-    font-size: 0.93rem;
-    line-height: 1.65;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.85;
+    letter-spacing: 0.01em;
 }
 
 /* ── File uploader styling ── */
@@ -265,7 +277,10 @@ textarea:focus {
 [data-testid="stChatInput"] textarea {
     background: transparent !important;
     color: var(--text) !important;
-    font-size: 0.93rem !important;
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.01em !important;
 }
 
 /* ── Buttons ── */
@@ -287,7 +302,7 @@ textarea:focus {
     padding: 12px;
     text-align: center;
 }
-.stat-num { font-family: 'DM Serif Display', serif; font-size: 1.6rem; color: var(--accent); line-height: 1; }
+.stat-num { font-family: 'Poppins', sans-serif; font-size: 1.6rem; font-weight: 600; color: var(--accent); line-height: 1; }
 .stat-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
 
 .fancy-divider {
@@ -562,21 +577,20 @@ def send_message(prompt, is_voice=False, file_name=None, file_content=None):
         st.error(f"❌ Error: {str(e)}")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# INPUT PANELS — two columns side by side
+# UNIFIED INPUT BOX — voice + file + text all in one
 # ══════════════════════════════════════════════════════════════════════════════
-col_voice, col_file = st.columns(2)
+st.markdown('<div class="unified-box">', unsafe_allow_html=True)
 
-# ── Voice panel ─────────────────────────────────────────────────────────────
+# ── Row 1: Voice + File side by side ────────────────────────────────────────
+col_voice, col_file = st.columns([1, 1])
+
 with col_voice:
-    st.markdown('<div class="input-panel voice-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-label">🎙️ &nbsp;Voice Message</div>', unsafe_allow_html=True)
-
+    st.markdown('<div class="tool-label">🎙️ Voice</div>', unsafe_allow_html=True)
     audio_file = st.audio_input(
         label="Record",
         label_visibility="collapsed",
         key="voice_recorder",
     )
-
     if audio_file is not None:
         audio_id = id(audio_file)
         if audio_id != st.session_state.last_audio_id:
@@ -606,13 +620,8 @@ with col_voice:
                 except Exception as e:
                     st.error(f"❌ Transcription error: {str(e)}")
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ── File upload panel ────────────────────────────────────────────────────────
 with col_file:
-    st.markdown('<div class="input-panel file-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-label">📎 &nbsp;Upload a File</div>', unsafe_allow_html=True)
-
+    st.markdown('<div class="tool-label">📎 File</div>', unsafe_allow_html=True)
     uploaded = st.file_uploader(
         label="Upload",
         label_visibility="collapsed",
@@ -622,31 +631,32 @@ with col_file:
         key="file_uploader",
         help="PDF, Word, Excel, CSV, images, code files, and more",
     )
-
     if uploaded is not None:
         if uploaded.name != st.session_state.last_file_name:
             st.session_state.last_file_name = uploaded.name
             with st.spinner(f"📖 Reading {uploaded.name}…"):
-                content = extract_text_from_file(uploaded)
-            st.session_state.active_file = {"name": uploaded.name, "content": content}
-            st.success(f"✅ **{uploaded.name}** loaded! Now ask anything about it below.")
+                file_content_extracted = extract_text_from_file(uploaded)
+            st.session_state.active_file = {"name": uploaded.name, "content": file_content_extracted}
+            st.success(f"✅ **{uploaded.name}** loaded!")
 
-    st.markdown('</div>', unsafe_allow_html=True)
+# ── Divider inside box ───────────────────────────────────────────────────────
+st.markdown('<div class="box-divider"></div>', unsafe_allow_html=True)
 
-st.markdown('<div class="fancy-divider"></div>', unsafe_allow_html=True)
+# ── Row 2: Text input ────────────────────────────────────────────────────────
+st.markdown('<div class="tool-label">💬 Message</div>', unsafe_allow_html=True)
 
-# ── Text chat input ─────────────────────────────────────────────────────────
 placeholder = (
     f"Ask about '{st.session_state.active_file['name']}' or anything else…"
     if st.session_state.active_file
-    else "Type a message, or use voice / file upload above…"
+    else "Type your message here…"
 )
 
 if prompt := st.chat_input(placeholder):
     active = st.session_state.active_file
     if active:
         send_message(prompt, file_name=active["name"], file_content=active["content"])
-        # After first message about file, keep file in context but don't re-attach full content every time
         st.session_state.active_file = {"name": active["name"], "content": active["content"]}
     else:
         send_message(prompt)
+
+st.markdown('</div>', unsafe_allow_html=True)
