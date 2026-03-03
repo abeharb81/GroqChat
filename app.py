@@ -36,6 +36,21 @@ html, body, [class*="css"] {
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'cv02','cv03','cv04','cv11';
 }
+
+/* Force dark theme on ALL Streamlit containers */
+.stApp,
+.stApp > div,
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewBlockContainer"],
+[data-testid="stVerticalBlock"],
+[data-testid="stMainBlockContainer"],
+.main, .block-container {
+    background-color: var(--bg) !important;
+    color: var(--text) !important;
+}
+[data-testid="stMain"] {
+    background-color: var(--bg) !important;
+}
 #MainMenu, footer { visibility: hidden; }
 .stDeployButton { display: none; }
 
@@ -240,8 +255,8 @@ textarea:focus,
 
 /* ── Chat bubbles ── */
 .user-bubble {
-    background: linear-gradient(135deg, #1c1e35, #191b30);
-    border: 1px solid #2e3050;
+    background: #1c1e35 !important;
+    border: 1px solid #2e3050 !important;
     border-radius: 18px 18px 4px 18px;
     padding: 16px 20px;
     margin: 10px 0 10px 60px;
@@ -250,15 +265,16 @@ textarea:focus,
     font-weight: 400;
     line-height: 1.75;
     letter-spacing: 0.012em;
-    color: #eeeef8;
+    color: #eeeef8 !important;
+    -webkit-text-fill-color: #eeeef8 !important;
     box-shadow: 0 2px 12px rgba(0,0,0,0.25);
 }
 .user-bubble.voice { border-left: 3px solid #f97316; }
 .user-bubble.file  { border-left: 3px solid #6366f1; }
 .bot-bubble {
-    background: linear-gradient(135deg, #101018, #13141f);
-    border: 1px solid #252638;
-    border-left: 3px solid #f97316;
+    background: #13141f !important;
+    border: 1px solid #252638 !important;
+    border-left: 3px solid #f97316 !important;
     border-radius: 4px 18px 18px 18px;
     padding: 18px 22px;
     margin: 10px 60px 10px 0;
@@ -267,7 +283,8 @@ textarea:focus,
     font-weight: 400;
     line-height: 1.85;
     letter-spacing: 0.012em;
-    color: #ddddf0;
+    color: #ddddf0 !important;
+    -webkit-text-fill-color: #ddddf0 !important;
     box-shadow: 0 2px 16px rgba(0,0,0,0.3);
 }
 
@@ -622,16 +639,37 @@ with col_voice:
             st.session_state.last_audio_id = audio_id
             with st.spinner("🎙️ Transcribing…"):
                 try:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-                        tmp.write(audio_file.read())
+                    # Read audio bytes and detect format from file header
+                    audio_bytes = audio_file.read()
+
+                    # Try to determine format — browsers send webm/ogg/wav depending on device
+                    # Save with .wav extension but send as multipart with correct mime
+                    if audio_bytes[:4] == b'OggS':
+                        suffix, mime = ".ogg", "audio/ogg"
+                        fname = "voice.ogg"
+                    elif audio_bytes[:4] == b'\x1aE\xdf\xa3' or audio_bytes[:4] == b'\x1aE':
+                        suffix, mime = ".webm", "audio/webm"
+                        fname = "voice.webm"
+                    elif audio_bytes[:4] == b'RIFF':
+                        suffix, mime = ".wav", "audio/wav"
+                        fname = "voice.wav"
+                    else:
+                        # Default fallback — most browsers send webm
+                        suffix, mime = ".webm", "audio/webm"
+                        fname = "voice.webm"
+
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        tmp.write(audio_bytes)
                         tmp_path = tmp.name
+
                     with open(tmp_path, "rb") as f:
                         transcription = client.audio.transcriptions.create(
                             model="whisper-large-v3-turbo",
-                            file=("voice.wav", f, "audio/wav"),
+                            file=(fname, f, mime),
                             response_format="text",
                         )
                     os.unlink(tmp_path)
+
                     transcript_text = (
                         transcription.strip()
                         if isinstance(transcription, str)
@@ -641,9 +679,9 @@ with col_voice:
                         st.markdown(f'<div class="voice-transcript">📝 {transcript_text}</div>', unsafe_allow_html=True)
                         send_message(transcript_text, is_voice=True)
                     else:
-                        st.warning("Couldn't hear anything. Try again.")
+                        st.warning("Couldn't hear anything clearly. Please try again.")
                 except Exception as e:
-                    st.error(f"❌ Transcription error: {str(e)}")
+                    st.error(f"❌ Voice error: {str(e)}")
 
 with col_file:
     st.markdown('<div class="tool-label">📎 File</div>', unsafe_allow_html=True)
