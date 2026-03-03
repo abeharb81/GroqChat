@@ -13,7 +13,7 @@ st.set_page_config(
 # ── Custom CSS ──────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Poppins:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
     --bg:       #0a0a0f;
@@ -29,9 +29,12 @@ st.markdown("""
 }
 
 html, body, [class*="css"] {
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Inter', sans-serif;
     background-color: var(--bg) !important;
     color: var(--text) !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02','cv03','cv04','cv11';
 }
 #MainMenu, footer { visibility: hidden; }
 .stDeployButton { display: none; }
@@ -54,9 +57,10 @@ html, body, [class*="css"] {
 [data-testid="stSidebar"] * { color: var(--text) !important; }
 
 .sidebar-title {
-    font-family: 'Poppins', sans-serif;
-    font-size: 1.6rem;
-    font-style: italic;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem;
+    font-style: normal;
+    font-weight: 700;
     color: var(--accent) !important;
     letter-spacing: -0.5px;
     margin-bottom: 2px;
@@ -69,34 +73,44 @@ html, body, [class*="css"] {
     margin-bottom: 20px;
 }
 
-/* ── Nuclear textarea fix ── */
-textarea, textarea:focus, textarea:active,
+/* ── Enterprise textarea — fully visible, crisp ── */
+textarea,
+textarea:focus,
+textarea:active,
+textarea:hover,
 .stTextArea textarea,
 .stTextArea > div > div > textarea,
 div[data-baseweb="textarea"] textarea,
 [data-testid="stSidebar"] textarea,
-[class*="TextArea"] textarea {
-    background-color: #1c1c30 !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    border: 1px solid #3a3a55 !important;
-    border-radius: 8px !important;
-    font-size: 0.95rem !important;
-    font-family: 'Nunito', sans-serif !important;
+[class*="TextArea"] textarea,
+[class*="stTextArea"] textarea {
+    background-color: #16182a !important;
+    color: #f4f4f8 !important;
+    -webkit-text-fill-color: #f4f4f8 !important;
+    border: 1.5px solid #32344a !important;
+    border-radius: 10px !important;
+    font-size: 0.96rem !important;
+    font-family: 'Inter', sans-serif !important;
     font-weight: 400 !important;
-    line-height: 1.6 !important;
+    line-height: 1.7 !important;
+    letter-spacing: 0.01em !important;
     opacity: 1 !important;
     caret-color: #f97316 !important;
+    padding: 12px 14px !important;
 }
-textarea::placeholder {
-    color: #5a5a7a !important;
-    -webkit-text-fill-color: #5a5a7a !important;
+textarea::placeholder,
+[class*="TextArea"] textarea::placeholder {
+    color: #4a4c6a !important;
+    -webkit-text-fill-color: #4a4c6a !important;
     opacity: 1 !important;
+    font-style: italic !important;
 }
-textarea:focus {
+textarea:focus,
+[class*="TextArea"] textarea:focus {
     border-color: #f97316 !important;
-    box-shadow: 0 0 0 2px rgba(249,115,22,0.2) !important;
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.15), 0 2px 12px rgba(0,0,0,0.3) !important;
     outline: none !important;
+    background-color: #1a1c30 !important;
 }
 [data-testid="stSidebar"] input {
     background-color: #1c1c30 !important;
@@ -113,10 +127,10 @@ textarea:focus {
     padding: 1.8rem 0 1rem;
 }
 .main-header h1 {
-    font-family: 'Poppins', sans-serif;
-    font-size: clamp(2rem, 5vw, 3rem);
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2rem, 5vw, 2.8rem);
     font-style: normal;
-    font-weight: 600;
+    font-weight: 700;
     background: linear-gradient(135deg, var(--accent), var(--accent2), #fbbf24);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -170,9 +184,9 @@ textarea:focus {
     box-shadow: 0 0 32px rgba(249,115,22,0.08);
 }
 .tool-label {
-    font-family: 'Nunito', sans-serif;
-    font-size: 0.72rem;
-    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 600;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--muted);
@@ -188,9 +202,9 @@ textarea:focus {
     border: 1px dashed #3a3a55;
     border-radius: 8px;
     padding: 10px 14px;
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 0.88rem;
-    color: #c0c0e0;
+    color: #c8c8e8;
     font-style: italic;
     margin-top: 8px;
     line-height: 1.5;
@@ -226,31 +240,35 @@ textarea:focus {
 
 /* ── Chat bubbles ── */
 .user-bubble {
-    background: var(--user-bg);
-    border: 1px solid var(--border);
-    border-radius: 16px 16px 4px 16px;
-    padding: 14px 18px;
-    margin: 8px 0 8px 40px;
-    font-family: 'Nunito', sans-serif;
-    font-size: 1rem;
-    font-weight: 500;
+    background: linear-gradient(135deg, #1c1e35, #191b30);
+    border: 1px solid #2e3050;
+    border-radius: 18px 18px 4px 18px;
+    padding: 16px 20px;
+    margin: 10px 0 10px 60px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.97rem;
+    font-weight: 400;
     line-height: 1.75;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.012em;
+    color: #eeeef8;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
 }
 .user-bubble.voice { border-left: 3px solid #f97316; }
 .user-bubble.file  { border-left: 3px solid #6366f1; }
 .bot-bubble {
-    background: var(--bot-bg);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
-    border-radius: 4px 16px 16px 16px;
-    padding: 14px 18px;
-    margin: 8px 40px 8px 0;
-    font-family: 'Nunito', sans-serif;
-    font-size: 1rem;
+    background: linear-gradient(135deg, #101018, #13141f);
+    border: 1px solid #252638;
+    border-left: 3px solid #f97316;
+    border-radius: 4px 18px 18px 18px;
+    padding: 18px 22px;
+    margin: 10px 60px 10px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.97rem;
     font-weight: 400;
     line-height: 1.85;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.012em;
+    color: #ddddf0;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.3);
 }
 
 /* ── File uploader styling ── */
@@ -276,11 +294,18 @@ textarea:focus {
 [data-testid="stChatInput"] > div:focus-within { border-color: var(--accent) !important; }
 [data-testid="stChatInput"] textarea {
     background: transparent !important;
-    color: var(--text) !important;
-    font-family: 'Nunito', sans-serif !important;
+    color: #f4f4f8 !important;
+    -webkit-text-fill-color: #f4f4f8 !important;
+    font-family: 'Inter', sans-serif !important;
     font-size: 1rem !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.01em !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.012em !important;
+    line-height: 1.6 !important;
+}
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #4a4c6a !important;
+    -webkit-text-fill-color: #4a4c6a !important;
+    font-style: italic !important;
 }
 
 /* ── Buttons ── */
@@ -302,7 +327,7 @@ textarea:focus {
     padding: 12px;
     text-align: center;
 }
-.stat-num { font-family: 'Poppins', sans-serif; font-size: 1.6rem; font-weight: 600; color: var(--accent); line-height: 1; }
+.stat-num { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--accent); line-height: 1; }
 .stat-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
 
 .fancy-divider {
