@@ -634,11 +634,19 @@ def send_message(prompt, is_voice=False, file_name=None, file_content=None):
         if FIREWALL_ENABLED:
             # ── Route through AI Firewall ──────────────────────────────────
             with st.spinner("🛡️ Firewall inspecting → Groq thinking…"):
+                # Extract the last user message as plain text for the firewall
+                last_user_msg = next(
+                    (m["content"] for m in reversed(api_messages) if m["role"] == "user"),
+                    prompt
+                )
+                # Send in the format your firewall's ChatRequest model expects
                 payload = {
-                    "model":       model,
+                    "message":     last_user_msg if isinstance(last_user_msg, str) else prompt,
                     "messages":    api_messages,
+                    "model":       model,
                     "temperature": temperature,
                     "max_tokens":  max_tokens,
+                    "system":      system_prompt,
                 }
                 # Build headers — firewall API key + ngrok bypass
                 fw_headers = {
