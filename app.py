@@ -640,10 +640,17 @@ def send_message(prompt, is_voice=False, file_name=None, file_content=None):
                     "temperature": temperature,
                     "max_tokens":  max_tokens,
                 }
+                # Build headers — include ngrok bypass token if set
+                fw_headers = {"Content-Type": "application/json"}
+                ngrok_token = st.secrets.get("NGROK_TOKEN", None)
+                if ngrok_token:
+                    fw_headers["ngrok-skip-browser-warning"] = "true"
+                    fw_headers["Authorization"] = f"Bearer {ngrok_token}"
+
                 fw_resp = requests.post(
                     FIREWALL_URL.rstrip("/") + "/v1/chat",
                     json=payload,
-                    headers={"Content-Type": "application/json"},
+                    headers=fw_headers,
                     timeout=60,
                 )
                 fw_resp.raise_for_status()
