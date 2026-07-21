@@ -1,6 +1,6 @@
 import streamlit as st
 from groq import Groq
-import tempfile, os, io, base64
+import tempfile, os, io, base64, requests, json
 
 # ── Page config ────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -451,6 +451,13 @@ except Exception:
 
 client = Groq(api_key=api_key)
 
+# ── Firewall config ──────────────────────────────────────────────────────────
+# Set FIREWALL_URL in Streamlit secrets to route through your AI firewall.
+# Example: FIREWALL_URL = "https://xxxx.ngrok.io"
+# Leave unset to bypass firewall and call Groq directly.
+FIREWALL_URL = st.secrets.get("FIREWALL_URL", None)
+FIREWALL_ENABLED = FIREWALL_URL is not None and str(FIREWALL_URL).strip() != ""
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown('<div class="sidebar-title">⚡ GroqChat</div>', unsafe_allow_html=True)
@@ -492,6 +499,32 @@ with st.sidebar:
         st.markdown(f"""<div class="stat-card">
             <div class="stat-num">{st.session_state.total_tokens:,}</div>
             <div class="stat-label">Tokens</div></div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Firewall status badge
+    st.markdown('<div class="fancy-divider"></div>', unsafe_allow_html=True)
+    if FIREWALL_ENABLED:
+        fw_short = FIREWALL_URL[:30] + "..." if len(FIREWALL_URL) > 30 else FIREWALL_URL
+        st.markdown(
+            "<div style='background:rgba(34,197,94,0.08);border:1px solid "
+            "rgba(34,197,94,0.3);border-radius:8px;padding:10px 14px;"
+            "font-size:0.78rem;color:#86efac;'>"
+            "🛡️ <strong>AI Firewall ACTIVE</strong><br>"
+            "<span style='color:#6b6b8a;font-size:0.7rem;'>Inspecting all prompts &amp; responses</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div style='background:rgba(100,100,100,0.06);border:1px solid "
+            "rgba(100,100,100,0.2);border-radius:8px;padding:10px 14px;"
+            "font-size:0.78rem;color:#6b6b8a;'>"
+            "⚪ <strong>Firewall OFF</strong><br>"
+            "<span style='font-size:0.7rem;'>Add FIREWALL_URL to Streamlit secrets to enable</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🗑️ Clear Conversation", use_container_width=True):
@@ -598,15 +631,69 @@ def send_message(prompt, is_voice=False, file_name=None, file_content=None):
             api_messages.append({"role": "user", "content": prompt})
 
     try:
-        with st.spinner("⚡ Thinking…"):
-            response = client.chat.completions.create(
-                model=model,
-                messages=api_messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-        reply       = response.choices[0].message.content
-        tokens_used = response.usage.total_tokens
+        if FIREWALL_ENABLED:
+            # ── Route through AI Firewall ──────────────────────────────────
+            with st.spinner("🛡️ Firewall inspecting → Groq thinking…"):
+                payload = {
+                    "model":       model,
+                    "messages":    api_messages,
+                    "temperature": temperature,
+                    "max_tokens":  max_tokens,
+                }
+                fw_resp = requests.post(
+                    FIREWALL_URL.rstrip("/") + "/v1/chat",
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=60,
+                )
+                fw_resp.raise_for_status()
+                fw_data = fw_resp.json()
+
+            # Firewall blocked the prompt
+            if fw_data.get("blocked"):
+                reason = fw_data.get("reason", "Policy violation detected.")
+                st.warning("🛡️ **Firewall blocked this message:** " + reason)
+                st.session_state.messages.pop()
+                st.rerun()
+                return
+
+            # Extract reply — support Groq-style and custom firewall formats
+            if "choices" in fw_data:
+                reply = fw_data["choices"][0]["message"]["content"]
+                tokens_used = fw_data.get("usage", {}).get("total_tokens", 0)
+            elif "response" in fw_data:
+                reply = fw_data["response"]
+                tokens_used = fw_data.get("tokens_used", 0)
+            elif "content" in fw_data:
+                reply = fw_data["content"]
+                tokens_used = fw_data.get("tokens_used", 0)
+            else:
+                reply = str(fw_data)
+                tokens_used = 0
+
+            # Show firewall inspection metadata if returned
+            meta = fw_data.get("firewall_meta", {})
+            if meta:
+                input_risk  = meta.get("input_risk", "—")
+                output_risk = meta.get("output_risk", "—")
+                latency     = meta.get("latency_ms", "—")
+                st.caption(
+                    f"🛡️ Input risk: `{input_risk}` · "
+                    f"Output risk: `{output_risk}` · "
+                    f"Firewall latency: `{latency}ms`"
+                )
+
+        else:
+            # ── Direct Groq (firewall off) ─────────────────────────────────
+            with st.spinner("⚡ Thinking…"):
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=api_messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            reply       = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.session_state.total_tokens  += tokens_used
@@ -615,8 +702,14 @@ def send_message(prompt, is_voice=False, file_name=None, file_content=None):
         st.markdown(f'<div class="bot-bubble">⚡ &nbsp;{reply}</div>', unsafe_allow_html=True)
         st.rerun()
 
+    except requests.exceptions.ConnectionError:
+        st.error("🛡️ ❌ Cannot reach firewall. Is it running? Check FIREWALL_URL in secrets.")
+    except requests.exceptions.Timeout:
+        st.error("🛡️ ❌ Firewall timed out. Check that your firewall is responding.")
+    except requests.exceptions.HTTPError as e:
+        st.error("🛡️ ❌ Firewall HTTP error: " + str(e))
     except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+        st.error("❌ Error: " + str(e))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # UNIFIED INPUT BOX — voice + file + text all in one
