@@ -706,13 +706,22 @@ def send_message(
             # Read the AI Security Gateway response contract.
             security = fw_data.get("security", {})
             if security.get("decision") in {"block", "review"}:
+                decision = security["decision"].upper()
                 reason = fw_data.get(
                     "answer",
                     "The firewall withheld this request.",
                 )
-                st.warning("🛡️ **Firewall blocked this message:** " + reason)
-                st.session_state.messages.pop()
-                st.rerun()
+                firewall_message = (
+                    f"🛡️ **Firewall decision: {decision}** — {reason}"
+                )
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": firewall_message,
+                    }
+                )
+                st.session_state.message_count += 1
+                st.warning(firewall_message)
                 return
 
             reply = fw_data.get("answer")
