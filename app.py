@@ -576,6 +576,26 @@ if st.session_state.active_file:
             st.session_state.last_file_name = None
             st.rerun()
 
+# ── Helper: show firewall decision ─────────────────────────────────────────
+def show_firewall_decision(result):
+    decision = str(result.get("decision", "block")).upper()
+    reason = result.get(
+        "reason",
+        "The firewall withheld this content.",
+    )
+    firewall_message = (
+        f"🛡️ **Firewall decision: {decision}** — {reason}"
+    )
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": firewall_message,
+        }
+    )
+    st.session_state.message_count += 1
+    st.warning(firewall_message)
+
+
 # ── Helper: send message ────────────────────────────────────────────────────
 def send_message(
     prompt,
@@ -639,35 +659,39 @@ def send_message(
 
     try:
         if FIREWALL_ENABLED:
-            # ── Route through AI Firewall ──────────────────────────────────
-            with st.spinner("🛡️ Firewall inspecting → Groq thinking…"):
-                # Extract the last user message as plain text for the firewall
-                last_user_msg = next(
-                    (m["content"] for m in reversed(api_messages) if m["role"] == "user"),
-                    prompt
-                )
-                # Do not set Content-Type for attachments: requests must
-                # generate the multipart boundary.
-                fw_headers = {
-                    "ngrok-skip-browser-warning": "true",
-                }
-                firewall_api_key = st.secrets.get("FIREWALL_API_KEY", None)
-                if firewall_api_key:
-                    fw_headers["X-API-Key"] = firewall_api_key
+            fw_headers = {
+                "ngrok-skip-browser-warning": "true",
+            }
+            firewall_api_key = st.secrets.get(
+                "FIREWALL_API_KEY",
+                None,
+            )
+            if firewall_api_key:
+                fw_headers["X-API-Key"] = firewall_api_key
 
-                attachment_extension = (
-                    file_name.rsplit(".", 1)[-1].lower()
-                    if file_name and "." in file_name
-                    else ""
-                )
-                inspectable_attachment = (
-                    file_bytes is not None
-                    and attachment_extension in {"pdf", "docx", "xlsx"}
-                )
+            last_user_msg = next(
+                (
+                    m["content"]
+                    for m in reversed(api_messages)
+                    if m["role"] == "user"
+                ),
+                prompt,
+            )
+            attachment_extension = (
+                file_name.rsplit(".", 1)[-1].lower()
+                if file_name and "." in file_name
+                else ""
+            )
+            inspectable_attachment = (
+                file_bytes is not None
+                and attachment_extension in {"pdf", "docx", "xlsx"}
+            )
 
+            with st.spinner("🛡️ Firewall inspecting input…"):
                 if inspectable_attachment:
-                    fw_resp = requests.post(
-                        FIREWALL_URL.rstrip("/") + "/v1/chat/attachments",
+                    input_response = requests.post(
+                        FIREWALL_URL.rstrip("/")
+                        + "/v1/inspect/attachment",
                         data={
                             "message": prompt,
                             "application_id": "groqchat",
@@ -684,64 +708,91 @@ def send_message(
                         timeout=60,
                     )
                 else:
-                    payload = {
-                        "message": (
-                            last_user_msg
-                            if isinstance(last_user_msg, str)
-                            else prompt
-                        ),
-                        "application_id": "groqchat",
-                    }
-                    fw_headers["Content-Type"] = "application/json"
-                    fw_resp = requests.post(
-                        FIREWALL_URL.rstrip("/") + "/v1/chat",
-                        json=payload,
+                    inspected_text = (
+                        last_user_msg
+                        if isinstance(last_user_msg, str)
+                        else prompt
+                    )
+                    input_response = requests.post(
+                        FIREWALL_URL.rstrip("/")
+                        + "/v1/inspect/input",
+                        json={
+                            "message": inspected_text,
+                            "application_id": "groqchat",
+                        },
                         headers=fw_headers,
                         timeout=60,
                     )
 
-                fw_resp.raise_for_status()
-                fw_data = fw_resp.json()
+                input_response.raise_for_status()
+                input_result = input_response.json()
 
-            # Read the AI Security Gateway response contract.
-            security = fw_data.get("security", {})
-            if security.get("decision") in {"block", "review"}:
-                decision = security["decision"].upper()
-                reason = fw_data.get(
-                    "answer",
-                    "The firewall withheld this request.",
-                )
-                firewall_message = (
-                    f"🛡️ **Firewall decision: {decision}** — {reason}"
-                )
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": firewall_message,
-                    }
-                )
-                st.session_state.message_count += 1
-                st.warning(firewall_message)
+            if input_result.get("decision") != "allow":
+                show_firewall_decision(input_result)
                 return
 
-            reply = fw_data.get("answer")
+            safe_input = input_result.get("safe_content")
+            if not safe_input:
+                raise RuntimeError(
+                    "Firewall allowed input without safe content."
+                )
+
+            # For supported document attachments, the firewall returns the
+            # extracted and approved document text. For text requests, use
+            # the normalized/redacted safe input. Vision content remains in
+            # its original multimodal Groq format after its text is approved.
+            if (
+                inspectable_attachment
+                or isinstance(api_messages[-1]["content"], str)
+            ):
+                api_messages[-1] = {
+                    "role": "user",
+                    "content": safe_input,
+                }
+
+            with st.spinner("⚡ Groq thinking…"):
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=api_messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+
+            groq_reply = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens
+
+            with st.spinner("🛡️ Firewall inspecting Groq output…"):
+                output_response = requests.post(
+                    FIREWALL_URL.rstrip("/")
+                    + "/v1/inspect/output",
+                    json={
+                        "original_input": safe_input,
+                        "model_output": groq_reply,
+                        "application_id": "groqchat",
+                    },
+                    headers=fw_headers,
+                    timeout=60,
+                )
+                output_response.raise_for_status()
+                output_result = output_response.json()
+
+            if output_result.get("decision") != "allow":
+                show_firewall_decision(output_result)
+                return
+
+            reply = output_result.get("safe_content")
             if not reply:
                 raise RuntimeError(
-                    "Firewall response did not include an answer."
+                    "Firewall allowed output without safe content."
                 )
-            tokens_used = 0
 
-            # Show firewall inspection metadata if returned
-            meta = fw_data.get("firewall_meta", {})
-            if meta:
-                input_risk  = meta.get("input_risk", "—")
-                output_risk = meta.get("output_risk", "—")
-                latency     = meta.get("latency_ms", "—")
-                st.caption(
-                    f"🛡️ Input risk: `{input_risk}` · "
-                    f"Output risk: `{output_risk}` · "
-                    f"Firewall latency: `{latency}ms`"
-                )
+            st.caption(
+                "🛡️ Input risk: "
+                f"`{input_result.get('risk_score', '—')}` · "
+                "Output risk: "
+                f"`{output_result.get('risk_score', '—')}` · "
+                "Answer model: `Groq`"
+            )
 
         else:
             # ── Direct Groq (firewall off) ─────────────────────────────────
