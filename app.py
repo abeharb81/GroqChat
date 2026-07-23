@@ -577,7 +577,14 @@ if st.session_state.active_file:
             st.rerun()
 
 # ── Helper: send message ────────────────────────────────────────────────────
-def send_message(prompt, is_voice=False, file_name=None, file_content=None):
+def send_message(
+    prompt,
+    is_voice=False,
+    file_name=None,
+    file_content=None,
+    file_bytes=None,
+    file_media_type=None,
+):
     display_content = prompt
     st.session_state.messages.append({
         "role": "user", "content": prompt,
@@ -639,54 +646,81 @@ def send_message(prompt, is_voice=False, file_name=None, file_content=None):
                     (m["content"] for m in reversed(api_messages) if m["role"] == "user"),
                     prompt
                 )
-                # Send in the format your firewall's ChatRequest model expects
-                payload = {
-                    "message":     last_user_msg if isinstance(last_user_msg, str) else prompt,
-                    "messages":    api_messages,
-                    "model":       model,
-                    "temperature": temperature,
-                    "max_tokens":  max_tokens,
-                    "system":      system_prompt,
-                }
-                # Build headers — firewall API key + ngrok bypass
+                # Do not set Content-Type for attachments: requests must
+                # generate the multipart boundary.
                 fw_headers = {
-                    "Content-Type": "application/json",
                     "ngrok-skip-browser-warning": "true",
                 }
                 firewall_api_key = st.secrets.get("FIREWALL_API_KEY", None)
                 if firewall_api_key:
                     fw_headers["X-API-Key"] = firewall_api_key
 
-                fw_resp = requests.post(
-                    FIREWALL_URL.rstrip("/") + "/v1/chat",
-                    json=payload,
-                    headers=fw_headers,
-                    timeout=60,
+                attachment_extension = (
+                    file_name.rsplit(".", 1)[-1].lower()
+                    if file_name and "." in file_name
+                    else ""
                 )
+                inspectable_attachment = (
+                    file_bytes is not None
+                    and attachment_extension in {"pdf", "docx", "xlsx"}
+                )
+
+                if inspectable_attachment:
+                    fw_resp = requests.post(
+                        FIREWALL_URL.rstrip("/") + "/v1/chat/attachments",
+                        data={
+                            "message": prompt,
+                            "application_id": "groqchat",
+                        },
+                        files={
+                            "attachment": (
+                                file_name,
+                                file_bytes,
+                                file_media_type
+                                or "application/octet-stream",
+                            )
+                        },
+                        headers=fw_headers,
+                        timeout=60,
+                    )
+                else:
+                    payload = {
+                        "message": (
+                            last_user_msg
+                            if isinstance(last_user_msg, str)
+                            else prompt
+                        ),
+                        "application_id": "groqchat",
+                    }
+                    fw_headers["Content-Type"] = "application/json"
+                    fw_resp = requests.post(
+                        FIREWALL_URL.rstrip("/") + "/v1/chat",
+                        json=payload,
+                        headers=fw_headers,
+                        timeout=60,
+                    )
+
                 fw_resp.raise_for_status()
                 fw_data = fw_resp.json()
 
-            # Firewall blocked the prompt
-            if fw_data.get("blocked"):
-                reason = fw_data.get("reason", "Policy violation detected.")
+            # Read the AI Security Gateway response contract.
+            security = fw_data.get("security", {})
+            if security.get("decision") in {"block", "review"}:
+                reason = fw_data.get(
+                    "answer",
+                    "The firewall withheld this request.",
+                )
                 st.warning("🛡️ **Firewall blocked this message:** " + reason)
                 st.session_state.messages.pop()
                 st.rerun()
                 return
 
-            # Extract reply — support Groq-style and custom firewall formats
-            if "choices" in fw_data:
-                reply = fw_data["choices"][0]["message"]["content"]
-                tokens_used = fw_data.get("usage", {}).get("total_tokens", 0)
-            elif "response" in fw_data:
-                reply = fw_data["response"]
-                tokens_used = fw_data.get("tokens_used", 0)
-            elif "content" in fw_data:
-                reply = fw_data["content"]
-                tokens_used = fw_data.get("tokens_used", 0)
-            else:
-                reply = str(fw_data)
-                tokens_used = 0
+            reply = fw_data.get("answer")
+            if not reply:
+                raise RuntimeError(
+                    "Firewall response did not include an answer."
+                )
+            tokens_used = 0
 
             # Show firewall inspection metadata if returned
             meta = fw_data.get("firewall_meta", {})
@@ -808,8 +842,14 @@ with col_file:
         if uploaded.name != st.session_state.last_file_name:
             st.session_state.last_file_name = uploaded.name
             with st.spinner(f"📖 Reading {uploaded.name}…"):
+                file_bytes = uploaded.getvalue()
                 file_content_extracted = extract_text_from_file(uploaded)
-            st.session_state.active_file = {"name": uploaded.name, "content": file_content_extracted}
+            st.session_state.active_file = {
+                "name": uploaded.name,
+                "content": file_content_extracted,
+                "data": file_bytes,
+                "media_type": uploaded.type,
+            }
             st.success(f"✅ **{uploaded.name}** loaded!")
 
 # ── Divider inside box ───────────────────────────────────────────────────────
@@ -827,8 +867,14 @@ placeholder = (
 if prompt := st.chat_input(placeholder):
     active = st.session_state.active_file
     if active:
-        send_message(prompt, file_name=active["name"], file_content=active["content"])
-        st.session_state.active_file = {"name": active["name"], "content": active["content"]}
+        send_message(
+            prompt,
+            file_name=active["name"],
+            file_content=active["content"],
+            file_bytes=active.get("data"),
+            file_media_type=active.get("media_type"),
+        )
+        st.session_state.active_file = active
     else:
         send_message(prompt)
 
