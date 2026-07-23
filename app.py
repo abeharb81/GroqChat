@@ -593,7 +593,7 @@ def show_firewall_decision(result):
         }
     )
     st.session_state.message_count += 1
-    st.warning(firewall_message)
+    st.rerun()
 
 
 # ── Helper: send message ────────────────────────────────────────────────────
