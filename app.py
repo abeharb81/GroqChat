@@ -441,6 +441,8 @@ if "message_count"  not in st.session_state: st.session_state.message_count  = 0
 if "last_audio_id"  not in st.session_state: st.session_state.last_audio_id  = None
 if "active_file"    not in st.session_state: st.session_state.active_file    = None  # {"name": ..., "content": ...}
 if "last_file_name" not in st.session_state: st.session_state.last_file_name = None
+if "file_uploader_nonce" not in st.session_state: st.session_state.file_uploader_nonce = 0
+if "upload_firewall_error" not in st.session_state: st.session_state.upload_firewall_error = None
 
 # ── API Key from secrets ────────────────────────────────────────────────────
 try:
@@ -596,6 +598,46 @@ def show_firewall_decision(result):
     st.rerun()
 
 
+def firewall_headers():
+    headers = {
+        "ngrok-skip-browser-warning": "true",
+    }
+    firewall_api_key = st.secrets.get(
+        "FIREWALL_API_KEY",
+        None,
+    )
+    if firewall_api_key:
+        headers["X-API-Key"] = firewall_api_key
+    return headers
+
+
+def inspect_attachment_before_upload(
+    *,
+    file_name,
+    file_bytes,
+    media_type,
+):
+    response = requests.post(
+        FIREWALL_URL.rstrip("/")
+        + "/v1/inspect/attachment",
+        data={
+            "message": "Inspect this attachment before accepting it.",
+            "application_id": "groqchat",
+        },
+        files={
+            "attachment": (
+                file_name,
+                file_bytes,
+                media_type or "application/octet-stream",
+            )
+        },
+        headers=firewall_headers(),
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 # ── Helper: send message ────────────────────────────────────────────────────
 def send_message(
     prompt,
@@ -659,15 +701,7 @@ def send_message(
 
     try:
         if FIREWALL_ENABLED:
-            fw_headers = {
-                "ngrok-skip-browser-warning": "true",
-            }
-            firewall_api_key = st.secrets.get(
-                "FIREWALL_API_KEY",
-                None,
-            )
-            if firewall_api_key:
-                fw_headers["X-API-Key"] = firewall_api_key
+            fw_headers = firewall_headers()
 
             last_user_msg = next(
                 (
@@ -895,12 +929,68 @@ with col_file:
         type=["txt","md","py","js","ts","html","css","json","xml","csv",
               "yaml","yml","sh","sql","pdf","docx","xlsx","xls",
               "png","jpg","jpeg","gif","webp"],
-        key="file_uploader",
+        key=(
+            "file_uploader_"
+            f"{st.session_state.file_uploader_nonce}"
+        ),
         help="PDF, Word, Excel, CSV, images, code files, and more",
     )
+    if st.session_state.upload_firewall_error:
+        st.error(st.session_state.upload_firewall_error)
+
     if uploaded is not None:
         if uploaded.name != st.session_state.last_file_name:
+            upload_bytes = uploaded.getvalue()
+            extension = (
+                uploaded.name.rsplit(".", 1)[-1].lower()
+                if "." in uploaded.name
+                else ""
+            )
+            inspectable_document = extension in {
+                "pdf",
+                "docx",
+                "xlsx",
+            }
+
+            if FIREWALL_ENABLED and inspectable_document:
+                try:
+                    with st.spinner(
+                        f"Firewall inspecting {uploaded.name}..."
+                    ):
+                        upload_result = inspect_attachment_before_upload(
+                            file_name=uploaded.name,
+                            file_bytes=upload_bytes,
+                            media_type=uploaded.type,
+                        )
+
+                    if upload_result.get("decision") != "allow":
+                        decision = str(
+                            upload_result.get("decision", "block")
+                        ).upper()
+                        reason = upload_result.get(
+                            "reason",
+                            "The firewall rejected this attachment.",
+                        )
+                        st.session_state.active_file = None
+                        st.session_state.last_file_name = None
+                        st.session_state.upload_firewall_error = (
+                            "Upload rejected - firewall decision: "
+                            f"{decision}. {reason}"
+                        )
+                        st.session_state.file_uploader_nonce += 1
+                        st.rerun()
+                except requests.exceptions.RequestException as exc:
+                    st.session_state.active_file = None
+                    st.session_state.last_file_name = None
+                    st.session_state.upload_firewall_error = (
+                        "Upload rejected because the firewall could "
+                        f"not inspect the attachment: {exc}"
+                    )
+                    st.session_state.file_uploader_nonce += 1
+                    st.rerun()
+
             st.session_state.last_file_name = uploaded.name
+            st.session_state.upload_firewall_error = None
             with st.spinner(f"📖 Reading {uploaded.name}…"):
                 file_bytes = uploaded.getvalue()
                 file_content_extracted = extract_text_from_file(uploaded)
