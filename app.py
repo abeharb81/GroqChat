@@ -581,13 +581,27 @@ if st.session_state.active_file:
 # ── Helper: show firewall decision ─────────────────────────────────────────
 def show_firewall_decision(result):
     decision = str(result.get("decision", "block")).upper()
+    direction = str(result.get("direction", "input")).lower()
     reason = result.get(
         "reason",
         "The firewall withheld this content.",
     )
-    firewall_message = (
-        f"🛡️ **Firewall decision: {decision}** — {reason}"
-    )
+    if decision == "BLOCK" and direction == "output":
+        label = (
+            "🛡️ OUTBOUND BLOCK — "
+            "Model response withheld by firewall"
+        )
+    elif decision == "BLOCK":
+        label = (
+            "🛡️ INBOUND BLOCK — "
+            "Prompt rejected by firewall"
+        )
+    else:
+        label = (
+            f"🛡️ {direction.upper()} {decision} — "
+            "Content held by firewall"
+        )
+    firewall_message = f"**{label}**\n\n{reason}"
     st.session_state.messages.append(
         {
             "role": "assistant",
@@ -964,9 +978,6 @@ with col_file:
                         )
 
                     if upload_result.get("decision") != "allow":
-                        decision = str(
-                            upload_result.get("decision", "block")
-                        ).upper()
                         reason = upload_result.get(
                             "reason",
                             "The firewall rejected this attachment.",
@@ -974,8 +985,8 @@ with col_file:
                         st.session_state.active_file = None
                         st.session_state.last_file_name = None
                         st.session_state.upload_firewall_error = (
-                            "Upload rejected - firewall decision: "
-                            f"{decision}. {reason}"
+                            "🛡️ UPLOAD BLOCK — Attachment rejected "
+                            f"by firewall\n\n{reason}"
                         )
                         st.session_state.file_uploader_nonce += 1
                         st.rerun()
@@ -983,8 +994,9 @@ with col_file:
                     st.session_state.active_file = None
                     st.session_state.last_file_name = None
                     st.session_state.upload_firewall_error = (
-                        "Upload rejected because the firewall could "
-                        f"not inspect the attachment: {exc}"
+                        "🛡️ UPLOAD BLOCK — Attachment rejected by "
+                        "firewall\n\nThe firewall could not inspect "
+                        f"the attachment: {exc}"
                     )
                     st.session_state.file_uploader_nonce += 1
                     st.rerun()
