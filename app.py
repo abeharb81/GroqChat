@@ -588,13 +588,13 @@ def show_firewall_decision(result):
     )
     if decision == "BLOCK" and direction == "output":
         label = (
-            "🛡️ OUTBOUND BLOCK — "
-            "Model response withheld by firewall"
+            "🛡️ LLM RESPONSE BLOCKED — "
+            "Withheld by firewall"
         )
     elif decision == "BLOCK":
         label = (
-            "🛡️ INBOUND BLOCK — "
-            "Prompt rejected by firewall"
+            "🛡️ PROMPT BLOCKED — "
+            "Rejected by firewall"
         )
     else:
         label = (
