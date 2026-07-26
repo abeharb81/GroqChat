@@ -634,6 +634,52 @@ def show_rate_limit_decision(result):
     st.rerun()
 
 
+def show_model_usage_limit_decision(result):
+    remaining = result.get("remaining_usage", 0)
+    required = result.get("required_usage", 0)
+    window = result.get("limiting_window", "configured")
+    primary_model = result.get("primary_model", "the primary model")
+    message = (
+        "**MODEL USAGE LIMIT REACHED**\n\n"
+        f"The {window} allowance has {remaining:,} remaining, but this "
+        f"request requires {required:,}. No request was sent to "
+        f"{primary_model}."
+    )
+    st.session_state.messages.append(
+        {"role": "assistant", "content": message}
+    )
+    st.session_state.message_count += 1
+    st.rerun()
+
+
+def estimate_model_input_usage(messages):
+    serialized = json.dumps(
+        messages,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return max(1, int((len(serialized) / 4) * 1.15) + 1)
+
+
+def cancel_model_usage_reservation(authorization_id, headers):
+    if not authorization_id:
+        return
+    try:
+        requests.post(
+            FIREWALL_URL.rstrip("/")
+            + "/v1/inspect/model-usage/cancel",
+            json={
+                "authorization_id": authorization_id,
+                "application_id": "groqchat",
+            },
+            headers=headers,
+            timeout=10,
+        )
+    except requests.RequestException:
+        # The firewall expires abandoned reservations automatically.
+        pass
+
+
 def firewall_headers():
     headers = {
         "ngrok-skip-browser-warning": "true",
@@ -757,6 +803,7 @@ def send_message(
                 file_bytes is not None
                 and attachment_extension in {"pdf", "docx", "xlsx"}
             )
+            estimated_input_usage = estimate_model_input_usage(api_messages)
 
             with st.spinner("🛡️ Firewall inspecting input…"):
                 if inspectable_attachment:
@@ -766,6 +813,10 @@ def send_message(
                         data={
                             "message": prompt,
                             "application_id": "groqchat",
+                            "estimated_input_usage": str(
+                                estimated_input_usage
+                            ),
+                            "requested_max_output_usage": str(max_tokens),
                         },
                         files={
                             "attachment": (
@@ -790,13 +841,21 @@ def send_message(
                         json={
                             "message": inspected_text,
                             "application_id": "groqchat",
+                            "estimated_input_usage": estimated_input_usage,
+                            "requested_max_output_usage": max_tokens,
                         },
                         headers=fw_headers,
                         timeout=60,
                     )
 
             if input_response.status_code == 429:
-                show_rate_limit_decision(input_response.json())
+                limit_result = input_response.json()
+                if (
+                    limit_result.get("decision")
+                    == "model_usage_limited"
+                ):
+                    show_model_usage_limit_decision(limit_result)
+                show_rate_limit_decision(limit_result)
                 return
 
             input_response.raise_for_status()
@@ -809,6 +868,13 @@ def send_message(
             if not input_result.get("model_call_authorized", False):
                 raise RuntimeError(
                     "Firewall did not authorize the primary-model call."
+                )
+            usage_authorization_id = input_result.get(
+                "model_usage_authorization_id"
+            )
+            if not usage_authorization_id:
+                raise RuntimeError(
+                    "Firewall did not reserve primary-model usage."
                 )
 
             safe_input = input_result.get("safe_content")
@@ -831,12 +897,19 @@ def send_message(
                 }
 
             with st.spinner("⚡ Groq thinking…"):
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=api_messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=api_messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+                except Exception:
+                    cancel_model_usage_reservation(
+                        usage_authorization_id,
+                        fw_headers,
+                    )
+                    raise
 
             groq_reply = response.choices[0].message.content
             tokens_used = response.usage.total_tokens
@@ -849,6 +922,18 @@ def send_message(
                         "original_input": safe_input,
                         "model_output": groq_reply,
                         "application_id": "groqchat",
+                        "model_usage_authorization_id": (
+                            usage_authorization_id
+                        ),
+                        "actual_input_usage": (
+                            response.usage.prompt_tokens
+                        ),
+                        "actual_output_usage": (
+                            response.usage.completion_tokens
+                        ),
+                        "actual_total_usage": (
+                            response.usage.total_tokens
+                        ),
                     },
                     headers=fw_headers,
                     timeout=60,
