@@ -612,6 +612,28 @@ def show_firewall_decision(result):
     st.rerun()
 
 
+def show_rate_limit_decision(result):
+    retry_after = int(result.get("retry_after_seconds", 1))
+    primary_model = result.get("primary_model", "primary model")
+    reason = result.get(
+        "reason",
+        "The primary-model request limit was exceeded.",
+    )
+    message = (
+        "**REQUEST RATE LIMIT REACHED**\n\n"
+        f"{reason} No request was sent to {primary_model}. "
+        f"Try again in {retry_after} seconds."
+    )
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": message,
+        }
+    )
+    st.session_state.message_count += 1
+    st.rerun()
+
+
 def firewall_headers():
     headers = {
         "ngrok-skip-browser-warning": "true",
@@ -637,6 +659,7 @@ def inspect_attachment_before_upload(
         data={
             "message": "Inspect this attachment before accepting it.",
             "application_id": "groqchat",
+            "authorize_model_call": "false",
         },
         files={
             "attachment": (
@@ -772,12 +795,21 @@ def send_message(
                         timeout=60,
                     )
 
-                input_response.raise_for_status()
-                input_result = input_response.json()
+            if input_response.status_code == 429:
+                show_rate_limit_decision(input_response.json())
+                return
+
+            input_response.raise_for_status()
+            input_result = input_response.json()
 
             if input_result.get("decision") != "allow":
                 show_firewall_decision(input_result)
                 return
+
+            if not input_result.get("model_call_authorized", False):
+                raise RuntimeError(
+                    "Firewall did not authorize the primary-model call."
+                )
 
             safe_input = input_result.get("safe_content")
             if not safe_input:
