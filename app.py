@@ -438,7 +438,6 @@ def truncate(text, max_chars=12000):
 if "messages"       not in st.session_state: st.session_state.messages       = []
 if "total_tokens"   not in st.session_state: st.session_state.total_tokens   = 0
 if "message_count"  not in st.session_state: st.session_state.message_count  = 0
-if "last_audio_id"  not in st.session_state: st.session_state.last_audio_id  = None
 if "active_file"    not in st.session_state: st.session_state.active_file    = None  # {"name": ..., "content": ...}
 if "last_file_name" not in st.session_state: st.session_state.last_file_name = None
 if "file_uploader_nonce" not in st.session_state: st.session_state.file_uploader_nonce = 0
@@ -533,7 +532,6 @@ with st.sidebar:
         st.session_state.messages       = []
         st.session_state.total_tokens   = 0
         st.session_state.message_count  = 0
-        st.session_state.last_audio_id  = None
         st.session_state.active_file    = None
         st.session_state.last_file_name = None
         st.rerun()
@@ -992,70 +990,7 @@ def send_message(
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="unified-box">', unsafe_allow_html=True)
 
-# ── Row 1: Voice + File side by side ────────────────────────────────────────
-col_voice = st.container()
-
-with col_voice:
-    st.markdown('<div class="tool-label">🎙️ Voice</div>', unsafe_allow_html=True)
-    audio_file = st.audio_input(
-        label="Record",
-        label_visibility="collapsed",
-        key="voice_recorder",
-    )
-    if audio_file is not None:
-        audio_id = id(audio_file)
-        if audio_id != st.session_state.last_audio_id:
-            st.session_state.last_audio_id = audio_id
-            with st.spinner("🎙️ Transcribing…"):
-                try:
-                    # Read audio bytes and detect format from file header
-                    audio_bytes = audio_file.read()
-
-                    # Try to determine format — browsers send webm/ogg/wav depending on device
-                    # Save with .wav extension but send as multipart with correct mime
-                    if audio_bytes[:4] == b'OggS':
-                        suffix, mime = ".ogg", "audio/ogg"
-                        fname = "voice.ogg"
-                    elif audio_bytes[:4] == b'\x1aE\xdf\xa3' or audio_bytes[:4] == b'\x1aE':
-                        suffix, mime = ".webm", "audio/webm"
-                        fname = "voice.webm"
-                    elif audio_bytes[:4] == b'RIFF':
-                        suffix, mime = ".wav", "audio/wav"
-                        fname = "voice.wav"
-                    else:
-                        # Default fallback — most browsers send webm
-                        suffix, mime = ".webm", "audio/webm"
-                        fname = "voice.webm"
-
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                        tmp.write(audio_bytes)
-                        tmp_path = tmp.name
-
-                    with open(tmp_path, "rb") as f:
-                        transcription = client.audio.transcriptions.create(
-                            model="whisper-large-v3-turbo",
-                            file=(fname, f, mime),
-                            response_format="text",
-                        )
-                    os.unlink(tmp_path)
-
-                    transcript_text = (
-                        transcription.strip()
-                        if isinstance(transcription, str)
-                        else transcription.text.strip()
-                    )
-                    if transcript_text:
-                        st.markdown(f'<div class="voice-transcript">📝 {transcript_text}</div>', unsafe_allow_html=True)
-                        send_message(transcript_text, is_voice=True)
-                    else:
-                        st.warning("Couldn't hear anything clearly. Please try again.")
-                except Exception as e:
-                    st.error(f"❌ Voice error: {str(e)}")
-
-# ── Divider inside box ───────────────────────────────────────────────────────
-st.markdown('<div class="box-divider"></div>', unsafe_allow_html=True)
-
-# ── Row 2: Text input ────────────────────────────────────────────────────────
+# ── Unified text, attachment and voice composer ──────────────────────────────
 st.markdown('<div class="tool-label">💬 Message</div>', unsafe_allow_html=True)
 
 placeholder = "Type a message or attach a file…"
@@ -1063,6 +998,7 @@ placeholder = "Type a message or attach a file…"
 submission = st.chat_input(
     placeholder,
     accept_file=True,
+    accept_audio=True,
     file_type=[
         "txt", "md", "py", "js", "ts", "html", "css", "json",
         "xml", "csv", "yaml", "yml", "sh", "sql", "pdf", "docx",
@@ -1073,8 +1009,57 @@ submission = st.chat_input(
 if submission:
     prompt = submission.text.strip()
     uploaded = submission.files[0] if submission.files else None
+    audio_file = submission.audio
     active = None
     attachment_allowed = True
+    submission_allowed = True
+    is_voice = False
+
+    if audio_file is not None:
+        tmp_path = None
+        try:
+            with st.spinner("Transcribing voice message..."):
+                audio_bytes = audio_file.getvalue()
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=".wav",
+                ) as tmp:
+                    tmp.write(audio_bytes)
+                    tmp_path = tmp.name
+
+                with open(tmp_path, "rb") as audio_stream:
+                    transcription = client.audio.transcriptions.create(
+                        model="whisper-large-v3-turbo",
+                        file=(
+                            "voice.wav",
+                            audio_stream,
+                            "audio/wav",
+                        ),
+                        response_format="text",
+                    )
+
+            transcript_text = (
+                transcription.strip()
+                if isinstance(transcription, str)
+                else transcription.text.strip()
+            )
+            if transcript_text:
+                prompt = "\n\n".join(
+                    item for item in (prompt, transcript_text) if item
+                )
+                is_voice = True
+            else:
+                submission_allowed = False
+                st.warning(
+                    "The recording did not contain recognizable speech. "
+                    "Please record it again."
+                )
+        except Exception as exc:
+            submission_allowed = False
+            st.error(f"Voice transcription failed: {exc}")
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
     if uploaded is not None:
         upload_bytes = uploaded.getvalue()
@@ -1124,19 +1109,20 @@ if submission:
                 "media_type": uploaded.type,
             }
 
-    if attachment_allowed:
+    if attachment_allowed and submission_allowed:
         if not prompt and active:
             prompt = f"Please analyze the attached file: {active['name']}"
 
         if prompt and active:
             send_message(
                 prompt,
+                is_voice=is_voice,
                 file_name=active["name"],
                 file_content=active["content"],
                 file_bytes=active["data"],
                 file_media_type=active["media_type"],
             )
         elif prompt:
-            send_message(prompt)
+            send_message(prompt, is_voice=is_voice)
 
 st.markdown('</div>', unsafe_allow_html=True)
