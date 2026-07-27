@@ -997,8 +997,10 @@ placeholder = "Type a message or attach a file…"
 
 submission = st.chat_input(
     placeholder,
+    key="groqchat_composer",
     accept_file=True,
     accept_audio=True,
+    audio_sample_rate=16000,
     file_type=[
         "txt", "md", "py", "js", "ts", "html", "css", "json",
         "xml", "csv", "yaml", "yml", "sh", "sql", "pdf", "docx",
