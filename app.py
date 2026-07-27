@@ -438,6 +438,8 @@ def truncate(text, max_chars=12000):
 if "messages"       not in st.session_state: st.session_state.messages       = []
 if "total_tokens"   not in st.session_state: st.session_state.total_tokens   = 0
 if "message_count"  not in st.session_state: st.session_state.message_count  = 0
+if "voice_recorder_nonce" not in st.session_state: st.session_state.voice_recorder_nonce = 0
+if "voice_recorder_error" not in st.session_state: st.session_state.voice_recorder_error = None
 if "active_file"    not in st.session_state: st.session_state.active_file    = None  # {"name": ..., "content": ...}
 if "last_file_name" not in st.session_state: st.session_state.last_file_name = None
 if "file_uploader_nonce" not in st.session_state: st.session_state.file_uploader_nonce = 0
@@ -532,6 +534,8 @@ with st.sidebar:
         st.session_state.messages       = []
         st.session_state.total_tokens   = 0
         st.session_state.message_count  = 0
+        st.session_state.voice_recorder_nonce += 1
+        st.session_state.voice_recorder_error = None
         st.session_state.active_file    = None
         st.session_state.last_file_name = None
         st.rerun()
@@ -993,14 +997,72 @@ st.markdown('<div class="unified-box">', unsafe_allow_html=True)
 # ── Unified text, attachment and voice composer ──────────────────────────────
 st.markdown('<div class="tool-label">💬 Message</div>', unsafe_allow_html=True)
 
+if st.session_state.voice_recorder_error:
+    st.error(st.session_state.voice_recorder_error)
+
+voice_file = st.audio_input(
+    "Record a voice message",
+    sample_rate=16000,
+    key=(
+        "voice_recorder_"
+        f"{st.session_state.voice_recorder_nonce}"
+    ),
+    label_visibility="collapsed",
+)
+
+if voice_file is not None:
+    tmp_path = None
+    st.session_state.voice_recorder_nonce += 1
+    st.session_state.voice_recorder_error = None
+    try:
+        with st.spinner("Transcribing voice message..."):
+            audio_bytes = voice_file.getvalue()
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=".wav",
+            ) as tmp:
+                tmp.write(audio_bytes)
+                tmp_path = tmp.name
+
+            with open(tmp_path, "rb") as audio_stream:
+                transcription = client.audio.transcriptions.create(
+                    model="whisper-large-v3-turbo",
+                    file=(
+                        "voice.wav",
+                        audio_stream,
+                        "audio/wav",
+                    ),
+                    response_format="text",
+                )
+
+        transcript_text = (
+            transcription.strip()
+            if isinstance(transcription, str)
+            else transcription.text.strip()
+        )
+        if transcript_text:
+            send_message(transcript_text, is_voice=True)
+        else:
+            st.session_state.voice_recorder_error = (
+                "The recording did not contain recognizable speech. "
+                "Please record it again."
+            )
+            st.rerun()
+    except Exception as exc:
+        st.session_state.voice_recorder_error = (
+            f"Voice transcription failed: {exc}"
+        )
+        st.rerun()
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
 placeholder = "Type a message or attach a file…"
 
 submission = st.chat_input(
     placeholder,
     key="groqchat_composer",
     accept_file=True,
-    accept_audio=True,
-    audio_sample_rate=16000,
     file_type=[
         "txt", "md", "py", "js", "ts", "html", "css", "json",
         "xml", "csv", "yaml", "yml", "sh", "sql", "pdf", "docx",
@@ -1011,57 +1073,8 @@ submission = st.chat_input(
 if submission:
     prompt = submission.text.strip()
     uploaded = submission.files[0] if submission.files else None
-    audio_file = submission.audio
     active = None
     attachment_allowed = True
-    submission_allowed = True
-    is_voice = False
-
-    if audio_file is not None:
-        tmp_path = None
-        try:
-            with st.spinner("Transcribing voice message..."):
-                audio_bytes = audio_file.getvalue()
-                with tempfile.NamedTemporaryFile(
-                    delete=False,
-                    suffix=".wav",
-                ) as tmp:
-                    tmp.write(audio_bytes)
-                    tmp_path = tmp.name
-
-                with open(tmp_path, "rb") as audio_stream:
-                    transcription = client.audio.transcriptions.create(
-                        model="whisper-large-v3-turbo",
-                        file=(
-                            "voice.wav",
-                            audio_stream,
-                            "audio/wav",
-                        ),
-                        response_format="text",
-                    )
-
-            transcript_text = (
-                transcription.strip()
-                if isinstance(transcription, str)
-                else transcription.text.strip()
-            )
-            if transcript_text:
-                prompt = "\n\n".join(
-                    item for item in (prompt, transcript_text) if item
-                )
-                is_voice = True
-            else:
-                submission_allowed = False
-                st.warning(
-                    "The recording did not contain recognizable speech. "
-                    "Please record it again."
-                )
-        except Exception as exc:
-            submission_allowed = False
-            st.error(f"Voice transcription failed: {exc}")
-        finally:
-            if tmp_path and os.path.exists(tmp_path):
-                os.unlink(tmp_path)
 
     if uploaded is not None:
         upload_bytes = uploaded.getvalue()
@@ -1111,20 +1124,19 @@ if submission:
                 "media_type": uploaded.type,
             }
 
-    if attachment_allowed and submission_allowed:
+    if attachment_allowed:
         if not prompt and active:
             prompt = f"Please analyze the attached file: {active['name']}"
 
         if prompt and active:
             send_message(
                 prompt,
-                is_voice=is_voice,
                 file_name=active["name"],
                 file_content=active["content"],
                 file_bytes=active["data"],
                 file_media_type=active["media_type"],
             )
         elif prompt:
-            send_message(prompt, is_voice=is_voice)
+            send_message(prompt)
 
 st.markdown('</div>', unsafe_allow_html=True)
