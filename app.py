@@ -993,7 +993,7 @@ def send_message(
 st.markdown('<div class="unified-box">', unsafe_allow_html=True)
 
 # ── Row 1: Voice + File side by side ────────────────────────────────────────
-col_voice, col_file = st.columns([1, 1])
+col_voice = st.container()
 
 with col_voice:
     st.markdown('<div class="tool-label">🎙️ Voice</div>', unsafe_allow_html=True)
@@ -1052,109 +1052,91 @@ with col_voice:
                 except Exception as e:
                     st.error(f"❌ Voice error: {str(e)}")
 
-with col_file:
-    st.markdown('<div class="tool-label">📎 File</div>', unsafe_allow_html=True)
-    uploaded = st.file_uploader(
-        label="Upload",
-        label_visibility="collapsed",
-        type=["txt","md","py","js","ts","html","css","json","xml","csv",
-              "yaml","yml","sh","sql","pdf","docx","xlsx","xls",
-              "png","jpg","jpeg","gif","webp"],
-        key=(
-            "file_uploader_"
-            f"{st.session_state.file_uploader_nonce}"
-        ),
-        help="PDF, Word, Excel, CSV, images, code files, and more",
-    )
-    if st.session_state.upload_firewall_error:
-        st.error(st.session_state.upload_firewall_error)
-
-    if uploaded is not None:
-        if uploaded.name != st.session_state.last_file_name:
-            upload_bytes = uploaded.getvalue()
-            extension = (
-                uploaded.name.rsplit(".", 1)[-1].lower()
-                if "." in uploaded.name
-                else ""
-            )
-            inspectable_document = extension in {
-                "pdf",
-                "docx",
-                "xlsx",
-            }
-
-            if FIREWALL_ENABLED and inspectable_document:
-                try:
-                    with st.spinner(
-                        f"Firewall inspecting {uploaded.name}..."
-                    ):
-                        upload_result = inspect_attachment_before_upload(
-                            file_name=uploaded.name,
-                            file_bytes=upload_bytes,
-                            media_type=uploaded.type,
-                        )
-
-                    if upload_result.get("decision") != "allow":
-                        reason = upload_result.get(
-                            "reason",
-                            "The firewall rejected this attachment.",
-                        )
-                        st.session_state.active_file = None
-                        st.session_state.last_file_name = None
-                        st.session_state.upload_firewall_error = (
-                            "🛡️ UPLOAD BLOCK — Attachment rejected "
-                            f"by firewall\n\n{reason}"
-                        )
-                        st.session_state.file_uploader_nonce += 1
-                        st.rerun()
-                except requests.exceptions.RequestException as exc:
-                    st.session_state.active_file = None
-                    st.session_state.last_file_name = None
-                    st.session_state.upload_firewall_error = (
-                        "🛡️ UPLOAD BLOCK — Attachment rejected by "
-                        "firewall\n\nThe firewall could not inspect "
-                        f"the attachment: {exc}"
-                    )
-                    st.session_state.file_uploader_nonce += 1
-                    st.rerun()
-
-            st.session_state.last_file_name = uploaded.name
-            st.session_state.upload_firewall_error = None
-            with st.spinner(f"📖 Reading {uploaded.name}…"):
-                file_bytes = uploaded.getvalue()
-                file_content_extracted = extract_text_from_file(uploaded)
-            st.session_state.active_file = {
-                "name": uploaded.name,
-                "content": file_content_extracted,
-                "data": file_bytes,
-                "media_type": uploaded.type,
-            }
-            st.success(f"✅ **{uploaded.name}** loaded!")
-
 # ── Divider inside box ───────────────────────────────────────────────────────
 st.markdown('<div class="box-divider"></div>', unsafe_allow_html=True)
 
 # ── Row 2: Text input ────────────────────────────────────────────────────────
 st.markdown('<div class="tool-label">💬 Message</div>', unsafe_allow_html=True)
 
-placeholder = (
-    f"Ask about '{st.session_state.active_file['name']}' or anything else…"
-    if st.session_state.active_file
-    else "Type your message here…"
+placeholder = "Type a message or attach a file…"
+
+submission = st.chat_input(
+    placeholder,
+    accept_file=True,
+    file_type=[
+        "txt", "md", "py", "js", "ts", "html", "css", "json",
+        "xml", "csv", "yaml", "yml", "sh", "sql", "pdf", "docx",
+        "xlsx", "xls", "png", "jpg", "jpeg", "gif", "webp",
+    ],
 )
 
-if prompt := st.chat_input(placeholder):
-    active = st.session_state.active_file
-    if active:
-        send_message(
-            prompt,
-            file_name=active["name"],
-            file_content=active["content"],
-            file_bytes=active.get("data"),
-            file_media_type=active.get("media_type"),
+if submission:
+    prompt = submission.text.strip()
+    uploaded = submission.files[0] if submission.files else None
+    active = None
+    attachment_allowed = True
+
+    if uploaded is not None:
+        upload_bytes = uploaded.getvalue()
+        extension = (
+            uploaded.name.rsplit(".", 1)[-1].lower()
+            if "." in uploaded.name
+            else ""
         )
-        st.session_state.active_file = active
-    else:
-        send_message(prompt)
+        inspectable_document = extension in {"pdf", "docx", "xlsx"}
+
+        if FIREWALL_ENABLED and inspectable_document:
+            try:
+                with st.spinner(
+                    f"Firewall inspecting {uploaded.name}..."
+                ):
+                    upload_result = inspect_attachment_before_upload(
+                        file_name=uploaded.name,
+                        file_bytes=upload_bytes,
+                        media_type=uploaded.type,
+                    )
+
+                if upload_result.get("decision") != "allow":
+                    attachment_allowed = False
+                    reason = upload_result.get(
+                        "reason",
+                        "The firewall rejected this attachment.",
+                    )
+                    st.error(
+                        "🛡️ UPLOAD BLOCK — Attachment rejected by "
+                        f"firewall\n\n{reason}"
+                    )
+            except requests.exceptions.RequestException as exc:
+                attachment_allowed = False
+                st.error(
+                    "🛡️ UPLOAD BLOCK — Attachment rejected by "
+                    "firewall\n\nThe firewall could not inspect "
+                    f"the attachment: {exc}"
+                )
+
+        if attachment_allowed:
+            with st.spinner(f"Reading {uploaded.name}..."):
+                file_content_extracted = extract_text_from_file(uploaded)
+            active = {
+                "name": uploaded.name,
+                "content": file_content_extracted,
+                "data": upload_bytes,
+                "media_type": uploaded.type,
+            }
+
+    if attachment_allowed:
+        if not prompt and active:
+            prompt = f"Please analyze the attached file: {active['name']}"
+
+        if prompt and active:
+            send_message(
+                prompt,
+                file_name=active["name"],
+                file_content=active["content"],
+                file_bytes=active["data"],
+                file_media_type=active["media_type"],
+            )
+        elif prompt:
+            send_message(prompt)
 
 st.markdown('</div>', unsafe_allow_html=True)
