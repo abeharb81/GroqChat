@@ -815,6 +815,8 @@ def send_message(
                         data={
                             "message": prompt,
                             "application_id": "groqchat",
+                            "requested_model_id": model,
+                            "model_provider": "Groq",
                             "estimated_input_usage": str(
                                 estimated_input_usage
                             ),
@@ -843,6 +845,8 @@ def send_message(
                         json={
                             "message": inspected_text,
                             "application_id": "groqchat",
+                            "requested_model_id": model,
+                            "model_provider": "Groq",
                             "estimated_input_usage": estimated_input_usage,
                             "requested_max_output_usage": max_tokens,
                         },
@@ -935,6 +939,13 @@ def send_message(
                         ),
                         "actual_total_usage": (
                             response.usage.total_tokens
+                        ),
+                        "requested_model_id": model,
+                        "provider_reported_model_id": response.model,
+                        "model_provider": "Groq",
+                        "provider_response_id": response.id,
+                        "system_fingerprint": getattr(
+                            response, "system_fingerprint", None
                         ),
                     },
                     headers=fw_headers,
