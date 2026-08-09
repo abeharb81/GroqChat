@@ -1,6 +1,6 @@
 import streamlit as st
 from groq import Groq
-import tempfile, os, io, base64, requests, json
+import tempfile, os, io, base64, requests, json, uuid
 
 # ── Page config ────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -444,6 +444,7 @@ if "active_file"    not in st.session_state: st.session_state.active_file    = N
 if "last_file_name" not in st.session_state: st.session_state.last_file_name = None
 if "file_uploader_nonce" not in st.session_state: st.session_state.file_uploader_nonce = 0
 if "upload_firewall_error" not in st.session_state: st.session_state.upload_firewall_error = None
+if "conversation_id" not in st.session_state: st.session_state.conversation_id = str(uuid.uuid4())
 
 # ── API Key from secrets ────────────────────────────────────────────────────
 try:
@@ -538,6 +539,7 @@ with st.sidebar:
         st.session_state.voice_recorder_error = None
         st.session_state.active_file    = None
         st.session_state.last_file_name = None
+        st.session_state.conversation_id = str(uuid.uuid4())
         st.rerun()
 
 # ── Main area ───────────────────────────────────────────────────────────────
@@ -707,6 +709,7 @@ def inspect_attachment_before_upload(
         data={
             "message": "Inspect this attachment before accepting it.",
             "application_id": "groqchat",
+            "conversation_id": st.session_state.conversation_id,
             "authorize_model_call": "false",
         },
         files={
@@ -815,6 +818,7 @@ def send_message(
                         data={
                             "message": prompt,
                             "application_id": "groqchat",
+                            "conversation_id": st.session_state.conversation_id,
                             "requested_model_id": model,
                             "model_provider": "Groq",
                             "estimated_input_usage": str(
@@ -845,6 +849,7 @@ def send_message(
                         json={
                             "message": inspected_text,
                             "application_id": "groqchat",
+                            "conversation_id": st.session_state.conversation_id,
                             "requested_model_id": model,
                             "model_provider": "Groq",
                             "estimated_input_usage": estimated_input_usage,
@@ -928,6 +933,7 @@ def send_message(
                         "original_input": safe_input,
                         "model_output": groq_reply,
                         "application_id": "groqchat",
+                        "conversation_id": st.session_state.conversation_id,
                         "model_usage_authorization_id": (
                             usage_authorization_id
                         ),
