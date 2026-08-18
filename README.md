@@ -66,11 +66,19 @@ groqchat/
 
 ## 🧠 Available AI Models
 
+The chat dropdown is intentionally limited to the models currently allowed in the Groq account used by this app.
+
 | Model | Best For |
 |-------|----------|
+| `groq/compound` | General-purpose Groq compound model |
+| `groq/compound-mini` | Faster lightweight Groq compound model |
 | `llama-3.3-70b-versatile` | Most capable, recommended for file analysis |
 | `llama-3.1-8b-instant` | Fastest responses |
+| `meta-llama/llama-prompt-guard-2-86m` | Prompt guard / safety filtering |
 | `mixtral-8x7b-32768` | Long context tasks |
+| `openai/gpt-oss-120b` | Large open-weight reasoning model |
+| `openai/gpt-oss-20b` | Faster open-weight reasoning model |
+| `openai/gpt-oss-safeguard-20b` | Safety / safeguard model |
 | `gemma2-9b-it` | Lightweight tasks |
 
 ---
