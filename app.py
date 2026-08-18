@@ -462,6 +462,20 @@ client = Groq(api_key=api_key)
 FIREWALL_URL = st.secrets.get("FIREWALL_URL", None)
 FIREWALL_ENABLED = FIREWALL_URL is not None and str(FIREWALL_URL).strip() != ""
 
+# Keep the chat picker aligned with the models allowed in the user's Groq account.
+CHAT_MODEL_OPTIONS = [
+    "groq/compound",
+    "groq/compound-mini",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "meta-llama/llama-prompt-guard-2-86m",
+    "mixtral-8x7b-32768",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-safeguard-20b",
+    "gemma2-9b-it",
+]
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown('<div class="sidebar-title">⚡ GroqChat</div>', unsafe_allow_html=True)
@@ -470,12 +484,7 @@ with st.sidebar:
 
     model = st.selectbox(
         "🧠 Chat Model",
-        options=[
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-            "gemma2-9b-it",
-        ],
+        options=CHAT_MODEL_OPTIONS,
         index=0,
         help="Llama 3.3 70B is recommended for file analysis.",
     )
