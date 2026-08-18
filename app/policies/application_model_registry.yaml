@@ -1,0 +1,522 @@
+name: aegisai-application-model-registry
+version: 1.0.229
+enforcement_mode: enforce
+applications:
+- application_id: groqchat
+  name: GroqChat
+  description: Conversational AI application routed through AegisAI before and after
+    primary-model calls.
+  status: active
+  environment: development
+  business_owner: Product Engineering
+  technical_owner: AI Platform Engineering
+  risk_tier: high
+  data_classifications:
+  - public
+  - internal
+  approved_model_ids:
+  - groq/compound
+  - groq/compound-mini
+  - llama-3.1-8b-instant
+  - llama-3.3-70b-versatile
+  - mixtral-8x7b-32768
+  - meta-llama/llama-prompt-guard-2-86m
+  - openai/gpt-oss-120b
+  - openai/gpt-oss-20b
+  - openai/gpt-oss-safeguard-20b
+  - openai-security-classifier
+  intended_uses:
+  - General conversational assistance
+  - Text, voice, and approved document analysis
+  prohibited_uses:
+  - Harmful, illegal, or dangerous operational assistance
+  - Disclosure of confidential information or credentials
+  safeguard_ids:
+  - CTRL-LOCAL-SIGNATURES
+  - CTRL-ATTACHMENT-INSPECTION
+  - CTRL-CONSTITUTIONAL-CLASSIFIER
+  - CTRL-OUTPUT-INSPECTION
+  - CTRL-RATE-LIMIT
+  - CTRL-MODEL-USAGE
+  threat_ids:
+  - FR-CBRN-BIO
+  - FR-CBRN-CHEM
+  - FR-CBRN-RADNUC
+  - FR-OFF-CYBER
+  - ENT-DATA-LOSS
+  - ENT-SAFEGUARD-EVASION
+  - ENT-ILLICIT-ACTIVITY
+  - ENT-MILITARY-HARM
+  - FR-LOSS-CONTROL
+  - FR-AUTO-RND
+  rate_limit_policy: development-primary-model-request-limits
+  model_usage_policy: development-primary-model-usage-limits
+  limitations:
+  - Novel phrasing may require semantic security classification
+  - Only supported attachment formats receive document extraction
+  residual_risks:
+  - False-positive or false-negative security classifications
+  - Primary-model or classifier provider availability
+  review_date: '2026-10-01'
+  application_type: unknown
+  classification_status: unclassified
+  classification_method: deterministic_behavioral
+  classification_confidence: 0.0
+  observed_capabilities: []
+  classification_evidence: []
+  recommended_security_domain: null
+  security_domain: chatbot
+- application_id: streamlit-dashboard
+  name: AegisAI gateway tester
+  description: Administrative dashboard test client used to exercise controlled firewall
+    requests.
+  status: active
+  environment: development
+  business_owner: AI Security
+  technical_owner: AI Platform Engineering
+  risk_tier: medium
+  data_classifications:
+  - public
+  - internal
+  approved_model_ids:
+  - configured-primary-model
+  - openai-security-classifier
+  intended_uses:
+  - Controlled firewall validation
+  - Security-policy testing
+  prohibited_uses:
+  - Unapproved production workloads
+  - Bypassing firewall enforcement
+  safeguard_ids:
+  - CTRL-LOCAL-SIGNATURES
+  - CTRL-CONSTITUTIONAL-CLASSIFIER
+  - CTRL-RATE-LIMIT
+  - CTRL-MODEL-USAGE
+  threat_ids:
+  - ENT-SAFEGUARD-EVASION
+  - ENT-DATA-LOSS
+  - FR-OFF-CYBER
+  rate_limit_policy: development-primary-model-request-limits
+  model_usage_policy: development-primary-model-usage-limits
+  limitations:
+  - Intended for development validation only
+  residual_risks:
+  - Test traffic can affect operational dashboards
+  review_date: '2026-10-01'
+  application_type: unknown
+  classification_status: unclassified
+  classification_method: deterministic_behavioral
+  classification_confidence: 0.0
+  observed_capabilities: []
+  classification_evidence: []
+  recommended_security_domain: null
+  security_domain: chatbot
+- application_id: codex
+  name: 'Discovered application: codex'
+  description: Automatically discovered from authenticated AegisAI API traffic. Governance
+    details require review.
+  status: draft
+  environment: discovered
+  business_owner: Unassigned
+  technical_owner: Unassigned
+  risk_tier: high
+  data_classifications:
+  - unknown
+  approved_model_ids:
+  - openai-security-classifier
+  intended_uses:
+  - Observed API integration pending governance review
+  prohibited_uses:
+  - Production use before registration and approval
+  safeguard_ids:
+  - CTRL-AGENT-ACTION-INSPECTION
+  - CTRL-RATE-LIMIT
+  - CTRL-MODEL-USAGE
+  threat_ids:
+  - ENT-DATA-LOSS
+  - ENT-SAFEGUARD-EVASION
+  - FR-LOSS-CONTROL
+  - FR-OFF-CYBER
+  rate_limit_policy: development-primary-model-request-limits
+  model_usage_policy: development-primary-model-usage-limits
+  limitations:
+  - Identity is self-reported through application_id
+  residual_risks:
+  - Ownership, purpose, model identity, and data handling have not been verified
+  review_date: '2026-09-06'
+  application_type: unknown
+  classification_status: unclassified
+  classification_method: deterministic_behavioral
+  classification_confidence: 0.0
+  observed_capabilities: []
+  classification_evidence: []
+  recommended_security_domain: null
+  security_domain: chatbot
+- application_id: aegis-local-test-agent
+  name: 'Discovered application: aegis-local-test-agent'
+  description: Automatically discovered from authenticated AegisAI API traffic. Governance
+    details require review.
+  status: draft
+  environment: discovered
+  business_owner: Unassigned
+  technical_owner: Unassigned
+  risk_tier: high
+  data_classifications:
+  - unknown
+  approved_model_ids:
+  - deterministic-local-planner
+  intended_uses:
+  - Observed API integration pending governance review
+  prohibited_uses:
+  - Production use before registration and approval
+  safeguard_ids:
+  - CTRL-AGENT-ACTION-INSPECTION
+  - CTRL-RATE-LIMIT
+  - CTRL-MODEL-USAGE
+  threat_ids:
+  - ENT-DATA-LOSS
+  - ENT-SAFEGUARD-EVASION
+  - FR-LOSS-CONTROL
+  - FR-OFF-CYBER
+  rate_limit_policy: development-primary-model-request-limits
+  model_usage_policy: development-primary-model-usage-limits
+  limitations:
+  - Identity is self-reported through application_id
+  residual_risks:
+  - Ownership, purpose, model identity, and data handling have not been verified
+  review_date: '2026-09-01'
+  application_type: unknown
+  classification_status: unclassified
+  classification_method: deterministic_behavioral
+  classification_confidence: 0.0
+  observed_capabilities: []
+  classification_evidence: []
+  recommended_security_domain: null
+  security_domain: chatbot
+models:
+- model_id: configured-primary-model
+  name: Configured dashboard primary model
+  provider: Configured provider
+  role: primary_model
+  status: active
+  hosting_type: configured external API
+  approved_application_ids:
+  - streamlit-dashboard
+  capabilities:
+  - controlled gateway testing
+  data_restrictions:
+  - Development validation data only
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity depends on runtime configuration
+  residual_risks:
+  - Configuration drift
+  configured_model_id: null
+  provider_reported_model_id: null
+  discovery_source: null
+  last_observed_at: null
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: llama-3.1-8b-instant
+  name: 'Discovered model: llama-3.1-8b-instant'
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: llama-3.1-8b-instant
+  provider_reported_model_id: llama-3.1-8b-instant
+  discovery_source: application_runtime_api
+  last_observed_at: '2026-08-06T13:24:28.023819+00:00'
+  provider_response_id: chatcmpl-93a3fea8-d582-4db4-931c-ac6ea3337c4c
+  system_fingerprint: fp_e2c608b1d6
+- model_id: deterministic-local-planner
+  name: 'Discovered model: deterministic-local-planner'
+  provider: Unverified
+  role: primary_model
+  status: draft
+  hosting_type: unknown
+  approved_application_ids:
+  - aegis-local-test-agent
+  capabilities:
+  - Unverified application model
+  data_restrictions:
+  - Do not treat as approved until governance review
+  safeguard_ids:
+  - CTRL-AGENT-ACTION-INSPECTION
+  limitations:
+  - Model identity is application-reported
+  residual_risks:
+  - Provider and behavior are unverified
+  configured_model_id: deterministic-local-planner
+  provider_reported_model_id: deterministic-local-planner
+  discovery_source: application_runtime_api
+  last_observed_at: '2026-08-03T03:29:07.625649+00:00'
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: llama-3.3-70b-versatile
+  name: 'Discovered model: llama-3.3-70b-versatile'
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: llama-3.3-70b-versatile
+  provider_reported_model_id: llama-3.3-70b-versatile
+  discovery_source: application_runtime_api
+  last_observed_at: '2026-08-06T13:23:29.897191+00:00'
+  provider_response_id: chatcmpl-9a927bf2-9883-4b8f-bd12-053db7a4cd02
+  system_fingerprint: fp_3272ea2d91
+- model_id: groq/compound
+  name: Groq Compound
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: groq/compound
+  provider_reported_model_id: groq/compound
+  discovery_source: groq_project_limits
+  last_observed_at: null
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: groq/compound-mini
+  name: Groq Compound Mini
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: groq/compound-mini
+  provider_reported_model_id: groq/compound-mini
+  discovery_source: groq_project_limits
+  last_observed_at: null
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: meta-llama/llama-prompt-guard-2-86m
+  name: Meta Llama Prompt Guard 2 86M
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: meta-llama/llama-prompt-guard-2-86m
+  provider_reported_model_id: meta-llama/llama-prompt-guard-2-86m
+  discovery_source: groq_project_limits
+  last_observed_at: null
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: openai/gpt-oss-120b
+  name: OpenAI GPT OSS 120B
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: openai/gpt-oss-120b
+  provider_reported_model_id: openai/gpt-oss-120b
+  discovery_source: groq_project_limits
+  last_observed_at: null
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: openai/gpt-oss-20b
+  name: OpenAI GPT OSS 20B
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: openai/gpt-oss-20b
+  provider_reported_model_id: openai/gpt-oss-20b
+  discovery_source: groq_project_limits
+  last_observed_at: null
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: openai/gpt-oss-safeguard-20b
+  name: OpenAI GPT OSS Safeguard 20B
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: openai/gpt-oss-safeguard-20b
+  provider_reported_model_id: openai/gpt-oss-safeguard-20b
+  discovery_source: groq_project_limits
+  last_observed_at: null
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: openai-security-classifier
+  name: OpenAI security classifier
+  provider: OpenAI
+  role: security_classifier
+  status: active
+  hosting_type: external cloud API
+  approved_application_ids:
+  - codex
+  - groqchat
+  - streamlit-dashboard
+  capabilities:
+  - ambiguous security classification
+  data_restrictions:
+  - Security classification only
+  - Must not generate end-user answers
+  safeguard_ids:
+  - CTRL-CONDITIONAL-ROUTING
+  - CTRL-POLICY-ENGINE
+  limitations:
+  - Called only when deterministic inspection requires escalation
+  residual_risks:
+  - Classifier availability
+  - False-positive or false-negative decisions
+  configured_model_id: gpt-5.4-mini
+  provider_reported_model_id: gpt-5.4-mini-2026-03-17
+  discovery_source: openai_responses_api
+  last_observed_at: '2026-08-16T17:51:38.711051+00:00'
+  provider_response_id: resp_08dd2e62af5779b8006a81f8a882f0819b8f4e9f0df43a7410
+  system_fingerprint: null
+- model_id: test-model
+  name: 'Discovered model: test-model'
+  provider: Unverified
+  role: primary_model
+  status: draft
+  hosting_type: unknown
+  approved_application_ids: []
+  capabilities:
+  - Unverified application model
+  data_restrictions:
+  - Do not treat as approved until governance review
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  limitations:
+  - Model identity is application-reported
+  residual_risks:
+  - Provider and behavior are unverified
+  configured_model_id: test-model
+  provider_reported_model_id: test-model
+  discovery_source: application_runtime_api
+  last_observed_at: '2026-08-16T07:33:42.037713+00:00'
+  provider_response_id: null
+  system_fingerprint: null
+- model_id: mixtral-8x7b-32768
+  name: 'Discovered model: mixtral-8x7b-32768'
+  provider: Groq
+  role: primary_model
+  status: active
+  hosting_type: provider API
+  approved_application_ids:
+  - groqchat
+  capabilities:
+  - Runtime-discovered application model
+  data_restrictions:
+  - Governed by AegisAI inspection
+  safeguard_ids:
+  - CTRL-INPUT-INSPECTION
+  - CTRL-OUTPUT-INSPECTION
+  limitations:
+  - Identity is provider/application reported
+  residual_risks:
+  - Provider metadata may use a model alias
+  configured_model_id: mixtral-8x7b-32768
+  provider_reported_model_id: mixtral-8x7b-32768
+  discovery_source: application_runtime_api
+  last_observed_at: '2026-08-18T02:14:34.996364+00:00'
+  provider_response_id: null
+  system_fingerprint: null
