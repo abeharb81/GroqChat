@@ -599,6 +599,15 @@ def show_firewall_decision(result):
         "reason",
         "The firewall withheld this content.",
     )
+    display_reason = result.get("display_reason")
+    if not display_reason:
+        categories = result.get("categories", [])
+        if isinstance(categories, list):
+            display_reason = ", ".join(
+                str(category).replace("_", " ").title()
+                for category in categories
+                if str(category).strip()
+            )
     if decision == "BLOCK" and direction == "output":
         label = (
             "🛡️ LLM RESPONSE BLOCKED — "
@@ -614,7 +623,12 @@ def show_firewall_decision(result):
             f"🛡️ {direction.upper()} {decision} — "
             "Content held by firewall"
         )
-    firewall_message = f"**{label}**\n\n{reason}"
+    reason_line = (
+        f"{reason} — {display_reason}"
+        if display_reason
+        else str(reason)
+    )
+    firewall_message = f"**{label}**\n\n{reason_line}"
     st.session_state.messages.append(
         {
             "role": "assistant",
