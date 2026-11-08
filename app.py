@@ -466,6 +466,7 @@ FIREWALL_ENABLED = FIREWALL_URL is not None and str(FIREWALL_URL).strip() != ""
 CHAT_MODEL_OPTIONS = [
     "groq/compound",
     "groq/compound-mini",
+    "qwen/qwen3.8-27b",
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
     "meta-llama/llama-prompt-guard-2-86m",
@@ -475,6 +476,14 @@ CHAT_MODEL_OPTIONS = [
     "openai/gpt-oss-safeguard-20b",
     "gemma2-9b-it",
 ]
+
+# Groq only accepts image content for models that advertise vision support.
+# Keep this explicit so a text-only model cannot receive a multipart message
+# and fail later with messages[n].content must be a string.
+VISION_MODEL_OPTIONS = {
+    "qwen/qwen3.8-27b",
+    "meta-models/muse-spark-open",
+}
 
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -758,6 +767,17 @@ def send_message(
     file_bytes=None,
     file_media_type=None,
 ):
+    if (
+        file_content
+        and file_content.startswith("__IMAGE__")
+        and model not in VISION_MODEL_OPTIONS
+    ):
+        st.error(
+            "🖼️ Image analysis requires a Groq vision model. "
+            "Select qwen/qwen3.8-27b and try again."
+        )
+        return
+
     display_content = prompt
     st.session_state.messages.append({
         "role": "user", "content": prompt,
