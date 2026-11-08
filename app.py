@@ -849,7 +849,9 @@ def send_message(
             )
             inspectable_attachment = (
                 file_bytes is not None
-                and attachment_extension in {"pdf", "docx", "xlsx"}
+                and attachment_extension in {
+                    "pdf", "docx", "xlsx", "jpg", "jpeg", "png", "webp", "bmp"
+                }
             )
             estimated_input_usage = estimate_model_input_usage(api_messages)
 
@@ -1143,7 +1145,9 @@ if submission:
             if "." in uploaded.name
             else ""
         )
-        inspectable_document = extension in {"pdf", "docx", "xlsx"}
+        inspectable_document = extension in {
+            "pdf", "docx", "xlsx", "jpg", "jpeg", "png", "webp", "bmp"
+        }
 
         if FIREWALL_ENABLED and inspectable_document:
             try:
